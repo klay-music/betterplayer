@@ -231,6 +231,10 @@ class BetterPlayerController {
     return betterPLayerControllerProvider.controller;
   }
 
+  static void setDelegatesAudioSessionChanges(bool value) {
+    VideoPlayerPlatform.instance.setDelegatesAudioSessionChanges(value);
+  }
+
   ///Setup new data source in Better Player.
   Future setupDataSource(BetterPlayerDataSource betterPlayerDataSource) async {
     postEvent(BetterPlayerEvent(BetterPlayerEventType.setupDataSource,

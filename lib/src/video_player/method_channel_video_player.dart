@@ -15,6 +15,15 @@ const MethodChannel _channel = MethodChannel('better_player_channel');
 class MethodChannelVideoPlayer extends VideoPlayerPlatform {
   @override
   Future<void> init() {
+    _channel.setMethodCallHandler((call) {
+      switch (call.method) {
+        case 'audioSessionActive':
+          bool value = call.arguments as bool;
+          _onAudioSessionActive.add(value);
+          break;
+      }
+      return Future<void>.value();
+    });
     return _channel.invokeMethod<void>('init');
   }
 
@@ -51,6 +60,15 @@ class MethodChannelVideoPlayer extends VideoPlayerPlatform {
     }
     return response?['textureId'] as int?;
   }
+
+  Future<void> setDelegatesAudioSessionChanges(bool value) {
+    return _channel.invokeListMethod<void>(
+        'setDelegatesAudioSessionChanges', value);
+  }
+
+  @override
+  StreamController<bool> _onAudioSessionActive = StreamController<bool>();
+  Stream<bool> get onAudioSessionActive => _onAudioSessionActive.stream;
 
   @override
   Future<void> setDataSource(int? textureId, DataSource dataSource) async {

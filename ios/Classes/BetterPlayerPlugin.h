@@ -16,5 +16,6 @@
 @property(readonly, weak, nonatomic) NSObject<FlutterBinaryMessenger>* messenger;
 @property(readonly, strong, nonatomic) NSMutableDictionary* players;
 @property(readonly, strong, nonatomic) NSObject<FlutterPluginRegistrar>* registrar;
+@property(readonly, strong, nonatomic) FlutterMethodChannel* channel;
 
 @end

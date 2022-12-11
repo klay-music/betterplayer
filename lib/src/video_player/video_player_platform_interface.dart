@@ -71,6 +71,12 @@ abstract class VideoPlayerPlatform {
     throw UnimplementedError('create() has not been implemented.');
   }
 
+  Future<void> setDelegatesAudioSessionChanges(bool value) {
+    throw UnimplementedError('setDelegatesAudioSessionChanges() has not been implemented.');
+  }
+
+  Stream<bool> get onAudioSessionActive;
+
   /// Pre-caches a video.
   Future<void> preCache(DataSource dataSource, int preCacheSize) {
     throw UnimplementedError('preCache() has not been implemented.');

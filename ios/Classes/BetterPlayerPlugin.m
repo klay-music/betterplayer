@@ -18,6 +18,7 @@ CacheManager* _cacheManager;
 int texturesCount = -1;
 BetterPlayer* _notificationPlayer;
 bool _remoteCommandsInitialized = false;
+bool _delegatesAudioSessionChanges = false;
 
 
 #pragma mark - FlutterPlugin protocol
@@ -25,23 +26,24 @@ bool _remoteCommandsInitialized = false;
     FlutterMethodChannel* channel =
     [FlutterMethodChannel methodChannelWithName:@"better_player_channel"
                                 binaryMessenger:[registrar messenger]];
-    BetterPlayerPlugin* instance = [[BetterPlayerPlugin alloc] initWithRegistrar:registrar];
-    [registrar addMethodCallDelegate:instance channel:channel];
+    BetterPlayerPlugin* instance = [[BetterPlayerPlugin alloc] initWithRegistrar:registrar channel:channel];
     //[registrar publish:instance];
     [registrar registerViewFactory:instance withId:@"com.jhomlala/better_player"];
 }
 
-- (instancetype)initWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
+- (instancetype)initWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar channel:(FlutterMethodChannel *)channel {
     self = [super init];
     NSAssert(self, @"super init cannot be nil");
     _messenger = [registrar messenger];
     _registrar = registrar;
+    _channel = channel;
     _players = [NSMutableDictionary dictionaryWithCapacity:1];
     _timeObserverIdDict = [NSMutableDictionary dictionary];
     _artworkImageDict = [NSMutableDictionary dictionary];
     _dataSourceDict = [NSMutableDictionary dictionary];
     _cacheManager = [[CacheManager alloc] init];
     [_cacheManager setup];
+    [registrar addMethodCallDelegate:self channel:channel];
     return self;
 }
 
@@ -107,18 +109,40 @@ bool _remoteCommandsInitialized = false;
 }
 
 - (void) setRemoteCommandsNotificationActive{
-    [[AVAudioSession sharedInstance] setActive:true error:nil];
+    [self activateAudioSession];
     [[UIApplication sharedApplication] beginReceivingRemoteControlEvents];
 }
 
 - (void) setRemoteCommandsNotificationNotActive{
-    if ([_players count] == 0) {
-        [[AVAudioSession sharedInstance] setActive:false error:nil];
-    }
-
+    [self deactivateAudioSessionWhenNoPlayerIsActive:NO];
     [[UIApplication sharedApplication] endReceivingRemoteControlEvents];
 }
 
+// MARK: - AVAudioSession
+
+- (void)activateAudioSession {
+    if (_delegatesAudioSessionChanges) {
+        [self.channel invokeMethod:@"audioSessionActive" arguments:[NSNumber numberWithBool:true]];
+    } else {
+        [[AVAudioSession sharedInstance] setActive:YES error:nil];
+    }
+}
+
+- (void)deactivateAudioSessionWhenNoPlayerIsActive:(BOOL)notifyOthers {
+    if ([_players count] > 0) return;
+
+    if (!_delegatesAudioSessionChanges) {
+        if (notifyOthers) {
+            [[AVAudioSession sharedInstance] setActive:NO withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation error:nil];
+        } else {
+            [[AVAudioSession sharedInstance] setActive:NO error:nil];
+        }
+    } else {
+        [self.channel invokeMethod:@"audioSessionActive" arguments:[NSNumber numberWithBool:false]];
+    }
+}
+
+// MARK: -
 
 - (void) setupRemoteCommands:(BetterPlayer*)player  {
     if (_remoteCommandsInitialized){
@@ -291,6 +315,12 @@ bool _remoteCommandsInitialized = false;
     } else if ([@"create" isEqualToString:call.method]) {
         BetterPlayer* player = [[BetterPlayer alloc] initWithFrame:CGRectZero];
         [self onPlayerSetup:player result:result];
+    } else if ([@"setDelegatesAudioSessionChanges" isEqualToString:call.method]) {
+        NSNumber *arg = call.arguments;
+        if (arg != nil) {
+            _delegatesAudioSessionChanges = arg.boolValue;
+            NSLog(@"setDelegatesAudioSessionChanges %d", _delegatesAudioSessionChanges);
+        }
     } else {
         NSDictionary* argsMap = call.arguments;
         int64_t textureId = ((NSNumber*)argsMap[@"textureId"]).unsignedIntegerValue;
@@ -365,9 +395,7 @@ bool _remoteCommandsInitialized = false;
                     [player dispose];
                 }
             });
-            if ([_players count] == 0) {
-                [[AVAudioSession sharedInstance] setActive:NO withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation error:nil];
-            }
+            [self deactivateAudioSessionWhenNoPlayerIsActive:YES];
             result(nil);
         } else if ([@"setLooping" isEqualToString:call.method]) {
             [player setIsLooping:[argsMap[@"looping"] boolValue]];
