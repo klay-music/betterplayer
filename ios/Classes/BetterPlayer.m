@@ -711,15 +711,15 @@ static inline CGFloat radiansToDegrees(CGFloat radians) {
 }
 
 - (void)setMixWithOthers:(bool)mixWithOthers {
-  // Preserve the currently set audio session category
+  // Preserve the currently set audio session category and options
   AVAudioSessionCategory category = AVAudioSession.sharedInstance.category;
+  AVAudioSessionCategoryOptions options = AVAudioSession.sharedInstance.categoryOptions;
   if (mixWithOthers) {
-    [[AVAudioSession sharedInstance] setCategory:category
-                                     withOptions:AVAudioSessionCategoryOptionMixWithOthers
-                                           error:nil];
+    options |= AVAudioSessionCategoryOptionMixWithOthers;
   } else {
-    [[AVAudioSession sharedInstance] setCategory:category error:nil];
+    options &= ~AVAudioSessionCategoryOptionMixWithOthers;
   }
+  [[AVAudioSession sharedInstance] setCategory:category withOptions:options error:nil];
 }
 
 
